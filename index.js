@@ -3,7 +3,9 @@ const bcrypt = require("bcryptjs");
 const db = require("./config/db");
 
 require("dotenv").config();
-const nodemailer = require("nodemailer");
+
+const { Resend } = require("resend");   // send the mail
+const resend = new Resend(process.env.RESEND_API_KEY);
 //part of scan
 const multer = require("multer");
 const axios = require("axios");
@@ -390,14 +392,6 @@ app.post("/scan", upload.single("file"), async (req, res) => {
 });
 
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
 
 
 
@@ -451,10 +445,10 @@ app.post("/forgot-password", (req, res) => {
         });
       }
 
-      try {
+      try { 
         // إرسال الإيميل
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
+        await resend.emails.send({
+          from: "Dawai <onboarding@resend.dev>",
           to: email,
           subject: "Dawai Password Reset OTP",
           text: `Your OTP code is: ${otp}`,
