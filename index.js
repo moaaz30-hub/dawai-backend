@@ -618,7 +618,7 @@ app.post("/chat", (req, res) => {
   }
 
   const getSessionQuery =
-    "SELECT last_medicine_id FROM user_chat_sessions WHERE user_id = ?";
+  "SELECT last_medicine_id, last_disease_type FROM user_chat_sessions WHERE user_id = ?";
 
   db.query(getSessionQuery, [user_id], async (err, rows) => {
     if (err) {
@@ -628,48 +628,61 @@ app.post("/chat", (req, res) => {
       });
     }
 
-    let lastMedicineId = 0;
+      let lastMedicineId = 0;
+      let lastDiseaseType = null;
 
-    if (rows.length > 0 && rows[0].last_medicine_id) {
-      lastMedicineId = rows[0].last_medicine_id;
-    }
+      if (rows.length > 0) {
+        lastMedicineId = rows[0].last_medicine_id || 0;
+        lastDiseaseType = rows[0].last_disease_type || null;
+      }
 
     try {
-      const aiResponse = await axios.post(`${AI_BASE_URL}/chat`, {
+        const aiResponse = await axios.post(`${AI_BASE_URL}/chat`, {
         message: message,
         medicine_id: lastMedicineId,
+        disease_type: lastDiseaseType,
       });
 
       const aiData = aiResponse.data;
 
       const reply = aiData.response;
       const newMedicineId = aiData.medicine_id;
-      const diseaseType = aiData.disease_type;
-      
-      if (newMedicineId && newMedicineId !== lastMedicineId) {
-        const updateSessionQuery = `
-            INSERT INTO user_chat_sessions (user_id, last_medicine_id, last_disease_type)
-            VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE 
-            last_medicine_id = ?,
-            last_disease_type = ?`;
+      const newDiseaseType = aiData.disease_type;
 
-        db.query(
-          updateSessionQuery,
-          [user_id, newMedicineId, diseaseType, newMedicineId, diseaseType],
-          (err) => {
-            if (err) {
-              console.log("CHAT MEMORY UPDATE ERROR:", err);
-            }
+    if (
+      (newMedicineId && newMedicineId !== lastMedicineId) ||
+      (newDiseaseType && newDiseaseType !== lastDiseaseType)
+    ) {
+      const updateSessionQuery = `
+        INSERT INTO user_chat_sessions (user_id, last_medicine_id, last_disease_type)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE 
+          last_medicine_id = ?,
+          last_disease_type = ?
+      `;
+
+      db.query(
+        updateSessionQuery,
+        [
+          user_id,
+          newMedicineId || lastMedicineId,
+          newDiseaseType || lastDiseaseType,
+          newMedicineId || lastMedicineId,
+          newDiseaseType || lastDiseaseType,
+        ],
+        (err) => {
+          if (err) {
+            console.log("CHAT MEMORY UPDATE ERROR:", err);
           }
-        );
-      } 
+        }
+      );
+    }
 
-      return res.json({
-        reply: reply,
-        medicine_id: newMedicineId || lastMedicineId,
-        disease_type: diseaseType || null,
-      });
+     return res.json({
+      reply: reply,
+      medicine_id: newMedicineId || lastMedicineId,
+      disease_type: newDiseaseType || lastDiseaseType,
+    });
     } catch (error) {
       console.log("CHAT AI ERROR:", error.response?.data || error.message);
       console.log("CHAT AI STATUS:", error.response?.status);
