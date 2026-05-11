@@ -644,27 +644,31 @@ app.post("/chat", (req, res) => {
 
       const reply = aiData.response;
       const newMedicineId = aiData.medicine_id;
-
+      const diseaseType = aiData.disease_type;
+      
       if (newMedicineId && newMedicineId !== lastMedicineId) {
         const updateSessionQuery = `
-          INSERT INTO user_chat_sessions (user_id, last_medicine_id)
-          VALUES (?, ?)
-          ON DUPLICATE KEY UPDATE last_medicine_id = ?
-        `;
+            INSERT INTO user_chat_sessions (user_id, last_medicine_id, last_disease_type)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+            last_medicine_id = ?,
+            last_disease_type = ?`;
 
         db.query(
           updateSessionQuery,
-          [user_id, newMedicineId, newMedicineId],
+          [user_id, newMedicineId, diseaseType, newMedicineId, diseaseType],
           (err) => {
             if (err) {
               console.log("CHAT MEMORY UPDATE ERROR:", err);
             }
           }
         );
-      }
+      } 
 
       return res.json({
         reply: reply,
+        medicine_id: newMedicineId || lastMedicineId,
+        disease_type: diseaseType || null,
       });
     } catch (error) {
       console.log("CHAT AI ERROR:", error.response?.data || error.message);
