@@ -448,7 +448,7 @@ app.post("/forgot-password", (req, res) => {
       try { 
         // إرسال الإيميل
         await resend.emails.send({
-          from: "Dawai <onboarding@resend.dev>",
+          from: "Dawai <no-reply@dawai.sbs>",
           to: email,
           subject: "Dawai Password Reset OTP",
           text: `Your OTP code is: ${otp}`,
